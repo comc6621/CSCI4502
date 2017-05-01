@@ -1,0 +1,272 @@
+From CL:mysql -u root
+
+imported file (source filePath)
+
+List of tables:
++-------------------------------------+
+| Tables_in_ecosurveybase             |
++-------------------------------------+
+| auth_group                          |
+| auth_group_permissions              |
+| auth_permission                     |
+| auth_user                           |
+| auth_user_groups                    |
+| auth_user_user_permissions          |
+| django_admin_log                    |
+| django_content_type                 |
+| django_migrations                   |
+| django_session                      |
+| easy_thumbnails_source              |
+| easy_thumbnails_thumbnail           |
+| easy_thumbnails_thumbnaildimensions |
+| ecosurvey_card                      |
+| ecosurvey_card_relations            |
+| ecosurvey_card_resources            |
+| ecosurvey_card_tags                 |
+| ecosurvey_graphdata                 |
+| ecosurvey_interaction               |
+| ecosurvey_relation                  |
+| ecosurvey_resource                  |
+| ecosurvey_role                      |
+| ecosurvey_survey                    |
+| ecosurvey_survey_cards              |
+| ecosurvey_survey_users              |
+| ecosurvey_surveyuser                |
+| ecosurvey_tag    
+
+
+auth_group:
+	id, name
+auth_group_permissions:
+	id, group_id, permission_id
+auth_permission:
+	id, content_type_id, codename, name
+	//can add user, can change user, change user ect
+auth_user:
+	id, password, last_login, is_superuser, first_name, last_name, email, is_staff, is_active, date_joined, username
+auth_user_groups:
+	id, user_id, group_id
+auth_user_user_permissions:
+	id, user_id, permission_id
+django_admin_log: 
+	id, object_id, object_repr, action_flag, change_message, content_type_id, user_id, action_time
+django_content_type:
+	id, app_lable, model
+django_migrations: 
+	id, app, name, applied
+django_session:
+	session_key, session_data, expire_date
+easy_thumbnails_source:
+	id, storage_hash,name, modified
+easy_thumbnails_thumbnail:
+	id, storage_hash, name, modified, source_id
+esay_thumbnails_thumbnaildimensions:
+	id, thumbnail_id, width, height
+*ecosurvey_card:
+	id, time_stamp, name, description, url, lastmod, gid, owner_id, role_id, image, lat, longitude, tmp
+*ecosurvey_card_relations:
+	id, card_id, relation_id
+*ecosurvey_card_resources:
+	id, card_id, resource_id
+*ecosurvey_card_tags:
+	id, card_id, tag_id
+ecosurvey_graphdata:
+	id, time_stamp, name, position_dat, graphdata, graph_data
+*ecosurvey_interaction:
+	id, name, description, type, inverse, inverse_id
+*ecosurvey_relation:
+	id, obj_id, relationship_id, subject_id,tmp
+	//relationship_id== interaction id
+*ecosurvey_resource:
+	id, name
+*ecosurvey_role:
+	id, name
+*ecosurvey_survey:
+	id, name, teacher, section, owner_id, join_key, graphdata_id
+*ecosurvey_survey_cards:
+	id, survey_id, card_id
+*ecosurvey_survey_users:
+	id, survey_id, surveyuser_id
+*ecosurvey_surveyuser:
+	id, group_number, role, user_id
+	//match ower_id on id, user_id goes to auth_user
+*ecosurvey_tag:
+	id, name
+
+CREATING VIEWS:::::::::::::::
+CREATE VIEW test.v AS SELECT * FROM t;
+
+JOINS:
+https://www.sitepoint.com/understanding-sql-joins-mysql-database/
+using Full Joing
+
+2/11/17
+Questions:
+what is gid - group id
+What is tmp - if card is temporary card 1: card is current part of model, 0:deleted it
+What are resources? necessary? - yeah
+
+2/20/17
+Put survey id and take out owner info
+can drop gid and ownerid
+Put in resource name
+Mock up of LAK poster Outline
+
+PROCESS:
+1) Prep Cards
+//Prepare cards for join
+alter table ecosurvey_card change id cid int(11);
+
+//Prepare roles for join
+alter table ecosurvey_role change name roleName varchar(75);
+
+//Join
+create table cardAndRole as SELECT * FROM ecosurvey_card LEFT JOIN ecosurvey_role  ON ecosurvey_card.role_id = ecosurvey_role.id;
+//NOT A ROLE FOR EVERY CARD, so NULL is if no role
+
+//Drop Role id stuff, don’t need it cause now have roleName
+ALTER TABLE cardAndRole DROP COLUMN id, DROP COLUMN role_id;
+
+//Prepare tags for join
+alter table ecosurvey_tag change name tagName varchar(75);
+
+//Join to get tag id
+create table cardRoleTagID as SELECT * FROM cardAndRole LEFT JOIN ecosurvey_card_tags  ON cardAndRole.cId = ecosurvey_card_tags.card_id;
+
+//Drop id and card_id from tag id join
+alter table cardRoleTagID drop column id, drop column card_id;
+
+//Join to get tag name
+create table cardRoleTag as SELECT * FROM cardRoleTagID LEFT JOIN ecosurvey_tag ON cardRoleTagID.tag_id = ecosurvey_tag.id;s
+
+//Drop tag_id and id from previous join
+alter table cardRoleTag drop column tag_id, drop column id;
+
+2)Put in Obj Data
+//Prepare cards
+alter table cardRoleTag change tmp cTmp tinyint(1);
+
+//Full join on obj_id
+create table relationsObjData as SELECT * FROM cardRoleTag LEFT JOIN ecosurvey_relation ON cardRoleTag.cId=ecosurvey_relation.obj_id  UNION SELECT * from cardRoleTag RIGHT JOIN ecosurvey_relation  ON cardRoleTag.cId=ecosurvey_relation.obj_id;
+
+//Change names to objData
+ALTER TABLE relationsObjData DROP COLUMN cid, CHANGE time_stamp obj_time_stamp date, CHANGE name obj_name varchar(75), CHANGE description obj_description text, CHANGE url obj_url varchar(256), CHANGE lastmod obj_lastmod datetime, CHANGE gid obj_gid varchar(75), CHANGE owner_id obj_owner_id int(11), CHANGE image obj_image varchar(75), CHANGE lat obj_lat decimal(20,17), CHANGE longitude obj_longitude decimal(20,17), CHANGE cTmp obj_cTmp tinyint(4), CHANGE roleName obj_roleName varchar(75), CHANGE tagName obj_tagName varchar(75);
+
+3)Put in Subj Data
+//Full join on subject_id
+create table relationsObjSubjData as SELECT * FROM cardRoleTag LEFT JOIN relationsObjData ON cardRoleTag.cId=relationsObjData.subject_id  UNION SELECT * from cardRoleTag RIGHT JOIN relationsObjData  ON cardRoleTag.cId=relationsObjData.subject_id;
+
+//Change names to subjectData
+ALTER TABLE relationsObjSubjData DROP COLUMN cid, 
+CHANGE time_stamp subject_time_stamp date, 
+CHANGE name subject_name varchar(75), 
+CHANGE description subject_description text, 
+CHANGE url subject_url varchar(256), 
+CHANGE lastmod subject_lastmod datetime, 
+CHANGE gid subject_gid varchar(75), 
+CHANGE owner_id subject_owner_id int(11), 
+CHANGE image subject_image varchar(75), 
+CHANGE lat subject_lat decimal(20,17), 
+CHANGE longitude subject_longitude decimal(20,17), 
+CHANGE cTmp subject_cTmp tinyint(4), 
+CHANGE roleName subject_roleName varchar(75), 
+CHANGE tagName subject_tagName varchar(75);
+
+4)Put in relationship data
+//Prepare
+ALTER TABLE relationsObjSubjData CHANGE id relationTableID int(11);
+
+//Full join on subject_id
+create table relationsObjSubjRelData as SELECT * FROM relationsObjSubjData LEFT JOIN ecosurvey_interaction ON relationsObjSubjData.relationship_id=ecosurvey_interaction.id  UNION SELECT * FROM relationsObjSubjData RIGHT JOIN ecosurvey_interaction ON relationsObjSubjData.relationship_id=ecosurvey_interaction.id
+
+//Change names to relationship data
+ALTER TABLE relationsObjSubjRelData DROP COLUMN id, 
+CHANGE name relationship_name varchar(75), 
+CHANGE description relationship_description varchar(200), 
+CHANGE type relationship_type varchar(75), 
+CHANGE inverse relationship_inverse int(11), 
+CHANGE inverse_id relationship_inverse_id int(11) 
+
+5) Get Owner Stuff
+//Join
+create table relationsObjSubjRelOwnerData as SELECT * FROM relationsObjSubjRelData LEFT JOIN ecosurvey_surveyuser ON relationsObjSubjRelData.subject_owner_id = ecosurvey_surveyuser.id;
+
+//Alter
+ alter table relationsObjSubjRelOwnerData 
+ change OwnerId Subj_OwnerId int(11),
+ change group_number subject_group_number varchar(75),
+ change role subject_owner_role varchar(75),
+ change user_id subject_owner_user_id int(11); 
+
+6)Put table into CSV
+//Path:/Users/conormcnamara/Desktop/DataMiningResearch
+
+SELECT 'subject_time_stamp',
+'subject_name',
+'subject_description',
+'subject_url',
+'subject_lastmod',
+'subject_gid',
+'subject_owner_id',
+'subject_image',
+'subject_lat',
+'subject_longitude',
+'subject_cTmp',
+'subject_roleName',
+'subject_tagName',
+'obj_time_stamp',
+'obj_name',
+'obj_description',
+'obj_url',
+'obj_lastmod',
+'obj_gid',
+'obj_owner_id',
+'obj_image',
+'obj_lat',
+'obj_longitude',
+'obj_cTmp','obj_roleName','obj_tagName','relationTableID','obj_id','relationship_id','subject_id','tmp','relationship_name','relationship_description','relationship_type','relationship_inverse','relationship_inverse_id','subject_group_number','subject_owner_role','subject_owner_user_id'
+UNION ALL
+SELECT subject_time_stamp,subject_name,subject_description,subject_url,subject_lastmod,subject_gid,subject_owner_id,subject_image,subject_lat,subject_longitude,subject_cTmp,subject_roleName,subject_tagName,obj_time_stamp,obj_name,obj_description,obj_url,obj_lastmod,obj_gid,obj_owner_id,obj_image,obj_lat,obj_longitude,obj_cTmp,obj_roleName,obj_tagName,relationTableID,obj_id,relationship_id,subject_id,tmp,relationship_name,relationship_description,relationship_type,relationship_inverse,relationship_inverse_id,subject_group_number,subject_owner_role,subject_owner_user_id
+FROM relationsObjSubjRelOwnerData
+    INTO OUTFILE '/Users/conormcnamara/Desktop/DataMiningResearch/DLA2016/Data/mysqlOut.csv'
+FIELDS ENCLOSED BY '"'
+TERMINATED BY ',' 
+LINES TERMINATED BY '\n'
+
+7)create table cardSurvey as SELECT * FROM ecosurvey_card LEFT JOIN ecosurvey_survey_cards ON ecosurvey_card.cid = ecosurvey_survey_cards.card_id; 
+
+8)ALTER TABLE cardSurvey DROP COLUMN id, DROP COLUMN card_id, CHANGE name cname varchar(75), CHANGE owner_id cowener_id int(11)
+
+9)create table cardSurveyTeachers as SELECT * FROM cardSurvey LEFT JOIN ecosurvey_survey ON cardSurvey.survey_id = ecosurvey_survey.id; 
+
+10) ALTER TABLE cardSurveyTeachers DROP COLUMN id;
+
+7) Get Just Card CSV
+SELECT 'cid','time_stamp','cname','description','url','lastmod','gid','cowner_id','role_id','image','lat','longitude','tmp','survey_id','name','teacher','section','owner_id','join_key','graphdata_id'
+UNION ALL
+SELECT cid,time_stamp,cname,description,url,lastmod,gid,cowener_id,role_id,image,lat,longitude,tmp,survey_id,name,teacher,section,owner_id,join_key,graphdata_id
+FROM cardSurveyTeachers
+INTO OUTFILE '/Users/conormcnamara/Desktop/DataMiningResearch/DLA2016/Data/CardsOut.csv'
+FIELDS ENCLOSED BY '"'
+TERMINATED BY ',' 
+LINES TERMINATED BY '\n'
+
+
+6)Process Stuff
+-There are ,s sometimes in the txt (added enclosed by)
+-Missing values (need to be ? in arff)
+
+
+2/17/17 MEETING NOTES:
+Drop gid(group id)
+Get owner id info
+tmp 0 = in the model
+
+
+
+Me Learning:
+//Changed ecosurvey_card id attribute to be cId
+alter table x change y z 
+
+//Created a table which was a full join of ecosurvey_card and ecosurvey_card_relations
+CREATE TABLE conorEco_CardANDEco_Card_RelationsJoin AS  SELECT * FROM ConorEcosurvey_card LEFT JOIN ecosurvey_card_relations ON ConorEcosurvey_card.cId=ecosurvey_card_relations.card_id UNION SELECT * FROM ConorEcosurvey_card RIGHT JOIN ecosurvey_card_relations ON ConorEcosurvey_card.cId=ecosurvey_card_relations.card_id;
