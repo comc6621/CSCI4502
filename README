@@ -1,0 +1,13 @@
+Project: EcoSurvey Analysis
+
+Authors: Conor McNamara and Shawn O'Grady
+
+Description: Our project was centered around an application called EcoSurvey. EcoSurvey is an application for school students to chart their local ecosystems. This application stores the data of the students interactions with it in a sql database. There are currently two versions of this application. Our project is to analyze the second version of the application as the analysis of the first version has all ready been done. Our project was to analyze this data by asking questions of the data set. Our goal in our analysis is to determine the differences in interactions with version one and version two and use our analysis of these differences to help develop a more student centered curriculum.
+
+Summary of questions to answer: The question that we are looking at in this context in particular is to see if given the features of a subject organism and the features of an object organism can we predict the relationship between the two organisms. This will help us to answer the question what are the differences between version one and version two of the applicaiton. These differences will help us answer the question which parts of the application were effective and which were not. By determining these questions, we can answer the ulitmate question which is: How can we build a more student centered curriculum. 
+
+Application: The application for this project is to use our findings to develop a more student centered curriculum. 
+
+Video: https://github.com/comc6621/CSCI4502/blob/master/Project15_EcoSurveyAnalysis_Part5.swf
+
+Final Paper:https://github.com/comc6621/CSCI4502/blob/master/15_EcoSurveyAnalysis_Part4.pdf
